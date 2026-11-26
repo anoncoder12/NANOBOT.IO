@@ -1,0 +1,2113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Smart Companion V13 — Interactive digital companion with animated expressions, custom messages, image/video display, QR code generator, live clock & weather, and fitness dashboard.">
+<title>Smart Companion V13</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23070a12'/%3E%3Ccircle cx='22' cy='28' r='5' fill='%2372e5ff'/%3E%3Ccircle cx='42' cy='28' r='5' fill='%2372e5ff'/%3E%3Cpath d='M20 41c4 6 20 6 24 0' stroke='%2372e5ff' stroke-width='4' stroke-linecap='round' fill='none'/%3E%3C/svg%3E">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<style>
+@property --mood{syntax:"<color>";inherits:true;initial-value:#72e5ff}
+
+:root{
+    --bg:#070a12;
+    --panel:#0f1524;
+    --panel2:#161e33;
+    --text:#eef3ff;
+    --muted:#8593ae;
+    --accent:#72e5ff;
+    --border:rgba(255,255,255,.08);
+    --green:#5ce6a5;
+    --mood:#72e5ff;
+    --ease:cubic-bezier(.2,.8,.2,1);
+    --spring:cubic-bezier(.34,1.56,.64,1);
+    color-scheme:dark;
+    transition:--mood .8s ease;
+}
+
+*{box-sizing:border-box}
+
+body{
+    margin:0;
+    font-family:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
+    background:radial-gradient(ellipse at 50% -20%,#16294a,transparent 50%) fixed,var(--bg);
+    color:var(--text);
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+}
+
+button,input,select{font:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ---------- header ---------- */
+header{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:16px 5%;
+    border-bottom:1px solid var(--border);
+    background:rgba(7,10,18,.78);
+    position:sticky;top:0;z-index:10;
+    backdrop-filter:blur(16px);
+}
+.logo{font-size:20px;font-weight:800;letter-spacing:.03em}
+.logo span{color:var(--accent)}
+.logo::before{
+    content:"";display:inline-block;vertical-align:middle;
+    width:6px;height:7px;border-radius:50%;
+    background:var(--accent);color:var(--accent);
+    box-shadow:11px 0 0 0 currentColor;
+    margin:-3px 26px 0 0;
+    animation:logoBlink 5s infinite;
+}
+@keyframes logoBlink{0%,92%,100%{height:7px}95%{height:1px}}
+
+.demo-tag{
+    font-size:11px;padding:7px 12px;border-radius:20px;
+    color:var(--green);background:rgba(92,230,165,.1);
+    border:1px solid rgba(92,230,165,.2);letter-spacing:.04em;
+}
+
+/* ---------- layout ---------- */
+.container{width:min(1100px,92%);margin:30px auto 60px}
+
+.topbar{
+    display:flex;justify-content:space-between;align-items:center;
+    gap:15px;flex-wrap:wrap;margin-bottom:24px;
+}
+.topbar h1{margin:0;font-size:30px;font-weight:700;letter-spacing:-.02em}
+.subtitle{color:var(--muted);margin-top:7px;font-size:14px}
+
+.status{
+    color:var(--green);font-size:12px;padding:9px 14px;
+    border:1px solid rgba(92,230,165,.2);
+    background:rgba(92,230,165,.08);border-radius:20px;
+}
+.status .dot{
+    display:inline-block;width:7px;height:7px;border-radius:50%;
+    background:var(--green);margin-right:8px;
+    animation:ping 2s infinite;
+}
+@keyframes ping{
+    0%{box-shadow:0 0 0 0 rgba(92,230,165,.6)}
+    70%,100%{box-shadow:0 0 0 8px rgba(92,230,165,0)}
+}
+
+.layout{display:grid;grid-template-columns:1.05fr .95fr;gap:22px}
+
+.card{
+    background:linear-gradient(160deg,var(--panel),#0b111f);
+    border:1px solid var(--border);
+    border-radius:24px;padding:24px;
+    box-shadow:0 14px 44px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.04);
+}
+.card-title{font-size:15px;font-weight:700;margin-bottom:18px;color:#cfdaf0}
+
+/* ---------- device stage ---------- */
+.layout>.card:first-child{overflow:hidden}
+.display-area{position:relative;isolation:isolate;display:flex;flex-direction:column;align-items:center;perspective:900px}
+.display-area::before{
+    content:"";position:absolute;z-index:-1;left:50%;top:40%;
+    width:110%;aspect-ratio:1;translate:-50% -50%;
+    background:radial-gradient(circle,rgba(114,229,255,.3),transparent 62%);
+    background:radial-gradient(circle,color-mix(in srgb,var(--mood) 36%,transparent),transparent 62%);
+    filter:blur(28px);pointer-events:none;
+    animation:bloom 6s ease-in-out infinite;
+}
+@keyframes bloom{
+    0%,100%{opacity:.45;scale:.94}
+    50%{opacity:.8;scale:1.06}
+}
+
+.device-frame{
+    position:relative;width:100%;max-width:310px;
+    padding:22px 17px 17px;border-radius:30px;
+    background:linear-gradient(150deg,#2a3852,#0a0f1b);
+    border:1px solid rgba(255,255,255,.14);
+    box-shadow:0 26px 50px rgba(0,0,0,.45),0 0 40px -12px var(--mood),inset 0 1px 2px rgba(255,255,255,.14);
+    transform:rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));
+    transition:transform .3s var(--ease);
+    will-change:transform;
+}
+.device-frame::before{
+    content:"";position:absolute;top:8px;left:50%;
+    width:5px;height:5px;margin-left:-2.5px;border-radius:50%;
+    background:var(--mood);box-shadow:0 0 8px 1px var(--mood);
+}
+.device-frame::after{
+    content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+    background:radial-gradient(circle at var(--mx,30%) var(--my,0%),rgba(255,255,255,.13),transparent 46%);
+}
+.device-frame.shaking{animation:shakeFrame .5s linear 8}
+@keyframes shakeFrame{
+    0%,100%{transform:translate(0,0) rotate(0)}
+    20%{transform:translate(-5px,2px) rotate(-3deg)}
+    40%{transform:translate(5px,-2px) rotate(3deg)}
+    60%{transform:translate(-4px,-2px) rotate(-2deg)}
+    80%{transform:translate(4px,2px) rotate(2deg)}
+}
+
+.screen{
+    width:100%;aspect-ratio:128/160;background:#000;
+    border-radius:12px;overflow:hidden;position:relative;
+    animation:boot 1s var(--ease) .1s backwards;
+}
+@keyframes boot{
+    0%{clip-path:inset(49.6% 10% 49.6% 10%);opacity:.9}
+    45%{clip-path:inset(49.6% 0 49.6% 0);opacity:1}
+    100%{clip-path:inset(0)}
+}
+.screen::after{
+    content:"";position:absolute;inset:0;z-index:3;pointer-events:none;
+    background:
+        repeating-linear-gradient(0deg,rgba(255,255,255,.03) 0 1px,transparent 1px 3px),
+        linear-gradient(115deg,rgba(255,255,255,.07),transparent 32%);
+    box-shadow:inset 0 0 26px rgba(0,0,0,.6);
+}
+
+#faceCanvas{width:100%;height:100%;display:block;animation:screenIn .4s var(--ease)}
+
+.screen-content{
+    position:absolute;inset:0;display:none;background:#000;color:#fff;
+    padding:12px;text-align:center;align-items:center;justify-content:center;flex-direction:column;
+}
+.screen-content.active{display:flex;animation:screenIn .4s var(--ease)}
+@keyframes screenIn{
+    0%{opacity:0;transform:scale(1.05);filter:blur(4px)}
+    100%{opacity:1;transform:none;filter:none}
+}
+
+.screen-clock{font-size:24px;font-weight:700;margin-bottom:9px;font-variant-numeric:tabular-nums}
+.screen-date{font-size:10px;color:#b8c6d9}
+.screen-weather{font-size:12px;margin-top:14px;line-height:1.6}
+.screen-fitness-number{font-size:34px;font-weight:800;color:#77e7ff;text-shadow:0 0 14px rgba(119,231,255,.5);font-variant-numeric:tabular-nums}
+.screen-fitness-label{font-size:11px;margin-top:5px;color:#b9c9dc}
+.screen-text{font-size:17px;font-weight:700;line-height:1.35;overflow-wrap:anywhere;max-width:100%}
+.screen-qr{width:100px;height:100px;background:#fff;padding:5px;display:grid;place-items:center}
+.screen-qr img,.screen-qr canvas{max-width:100%;max-height:100%}
+
+#deviceImage,#deviceVideo{width:100%;height:100%;object-fit:contain;display:none;animation:screenIn .4s var(--ease)}
+
+.device-caption{text-align:center;color:var(--muted);font-size:12px;margin-top:14px}
+.current-expression{color:var(--mood);font-weight:700;margin-top:16px;font-size:16px;letter-spacing:.01em}
+.current-expression.swap{animation:swap .45s var(--ease)}
+@keyframes swap{from{opacity:0;transform:translateY(8px);letter-spacing:.14em}}
+
+/* ---------- tabs ---------- */
+.tabs{display:flex;gap:7px;flex-wrap:wrap;margin:22px 0;position:relative}
+.tab{
+    position:relative;z-index:1;
+    border:1px solid var(--border);color:var(--muted);background:var(--panel);
+    padding:10px 14px;border-radius:11px;font-size:13px;
+    transition:color .25s,border-color .25s,background .25s;
+}
+.tab:hover{color:var(--text);border-color:rgba(114,229,255,.25)}
+.tab.active{color:var(--accent);background:transparent;border-color:transparent}
+.tab-glider{
+    position:absolute;left:0;top:0;width:0;height:0;border-radius:11px;
+    background:rgba(114,229,255,.14);border:1px solid rgba(114,229,255,.4);
+    box-shadow:0 0 18px -4px rgba(114,229,255,.5);
+}
+.tab-glider.ready{transition:transform .45s cubic-bezier(.3,1.25,.5,1),width .45s var(--ease),height .45s var(--ease)}
+
+.section{display:none}
+.section.active{display:block;animation:sectionIn .4s var(--ease)}
+@keyframes sectionIn{from{opacity:0;transform:translateY(6px)}}
+
+/* ---------- faces ---------- */
+.face-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
+.face-btn{
+    min-height:72px;border:1px solid var(--border);background:var(--panel2);color:var(--text);
+    border-radius:14px;font-size:12px;
+    transition:transform .25s var(--spring),border-color .2s,background .2s,color .2s,box-shadow .3s;
+}
+.face-btn:hover{transform:translateY(-2px);border-color:rgba(114,229,255,.4)}
+.face-btn.selected{
+    border-color:var(--mood);color:var(--mood);
+    background:rgba(114,229,255,.1);
+    background:color-mix(in srgb,var(--mood) 12%,var(--panel2));
+    box-shadow:0 8px 22px -10px var(--mood);
+    animation:selectPop .4s var(--spring);
+}
+@keyframes selectPop{0%{transform:scale(.92)}60%{transform:scale(1.06)}100%{transform:scale(1)}}
+.face-symbol{display:block;font-size:22px;margin-bottom:6px;transition:transform .3s var(--spring)}
+.face-btn:hover .face-symbol{transform:scale(1.22) rotate(-6deg)}
+
+/* ---------- buttons ---------- */
+.primary{
+    position:relative;overflow:hidden;
+    background:linear-gradient(110deg,#50d9fa,#7a9fff);color:#07111e;
+    border:0;border-radius:12px;padding:11px 17px;font-weight:800;
+    transition:transform .25s var(--spring),box-shadow .3s;
+}
+.primary::after{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.55) 50%,transparent 65%);
+    transform:translateX(-120%);transition:transform .6s var(--ease);
+}
+.primary:hover{transform:translateY(-1px);box-shadow:0 10px 26px -8px rgba(80,217,250,.6)}
+.primary:hover::after{transform:translateX(120%)}
+
+.secondary{
+    background:var(--panel2);color:var(--text);
+    border:1px solid var(--border);border-radius:12px;padding:10px 15px;
+    transition:transform .25s var(--spring),border-color .2s,background .2s;
+}
+.secondary:hover{border-color:rgba(114,229,255,.4);background:#1b2540}
+.primary:active,.secondary:active,.face-btn:active{transform:scale(.96)}
+
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:16px 0;flex-wrap:wrap}
+.label{font-size:13px;font-weight:700}
+.hint{color:var(--muted);font-size:12px;margin-top:5px;line-height:1.5}
+
+/* ---------- inputs ---------- */
+input[type="text"],input[type="number"],select{
+    background:#0a1120;border:1px solid var(--border);border-radius:11px;
+    color:#fff;padding:11px 12px;width:100%;outline:none;
+    transition:border-color .2s,box-shadow .2s;
+}
+input[type="file"]{
+    width:100%;padding:12px;background:#0a1120;color:var(--muted);
+    border:1px solid var(--border);border-radius:11px;font-size:12px;
+}
+input[type="file"]::file-selector-button{
+    background:var(--panel2);color:var(--text);border:1px solid var(--border);
+    border-radius:8px;padding:6px 11px;margin-right:10px;cursor:pointer;
+}
+input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(114,229,255,.15)}
+
+input[type="range"]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:6px;background:var(--panel2);outline:none;padding:0;border:0}
+input[type="range"]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:20px;height:20px;border-radius:50%;
+    background:var(--accent);box-shadow:0 0 0 4px rgba(114,229,255,.18);
+    transition:box-shadow .2s;cursor:pointer;
+}
+input[type="range"]::-moz-range-thumb{
+    width:20px;height:20px;border:0;border-radius:50%;
+    background:var(--accent);box-shadow:0 0 0 4px rgba(114,229,255,.18);cursor:pointer;
+}
+input[type="range"]:active::-webkit-slider-thumb{box-shadow:0 0 0 9px rgba(114,229,255,.2)}
+
+/* ---------- switch ---------- */
+.switch{
+    width:46px;height:26px;border-radius:20px;background:#34415a;
+    position:relative;border:0;flex:none;
+    transition:background .3s,box-shadow .3s;
+}
+.switch::after{
+    content:"";width:20px;height:20px;background:#fff;
+    position:absolute;top:3px;left:3px;border-radius:12px;
+    transition:left .35s var(--spring),width .2s;
+}
+.switch:active::after{width:25px}
+.switch.on{background:#37c9a0;box-shadow:0 0 16px rgba(55,201,160,.45)}
+.switch.on::after{left:23px}
+.switch.on:active::after{left:18px}
+
+/* ---------- stats, QR, image, notes ---------- */
+.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:17px}
+.stat{padding:16px;background:var(--panel2);border-radius:14px;border:1px solid var(--border)}
+.stat-value{font-size:26px;font-weight:800;color:var(--accent);font-variant-numeric:tabular-nums;transform-origin:left center}
+.stat-label{color:var(--muted);font-size:11px;margin-top:5px;letter-spacing:.04em}
+.bump{animation:bump .4s var(--spring)}
+@keyframes bump{40%{transform:scale(1.2);color:#fff}}
+
+.qr-box{min-height:150px;background:#fff;border-radius:14px;display:grid;place-items:center;padding:12px;margin:16px auto;width:170px}
+#qrOutput img,#qrOutput canvas{max-width:100%;height:auto}
+
+.image-preview-box{
+    min-height:180px;background:#000;border-radius:14px;
+    display:flex;justify-content:center;align-items:center;
+    padding:10px;margin-top:15px;overflow:hidden;
+}
+#imagePreview{max-width:100%;max-height:210px;object-fit:contain}
+
+.note{
+    padding:13px;background:rgba(114,229,255,.06);
+    border:1px solid rgba(114,229,255,.15);border-radius:13px;
+    color:#c4d6e9;font-size:12px;line-height:1.6;margin-top:16px;
+}
+
+footer{text-align:center;color:var(--muted);font-size:12px;padding:26px 10px}
+
+/* ---------- responsive & motion ---------- */
+@media(min-width:781px){
+    .layout>.card:first-child{position:sticky;top:92px;align-self:start}
+}
+@media(max-width:780px){
+    .layout{grid-template-columns:1fr}
+    .container{width:94%;margin-top:20px}
+    header{padding:14px 4%}
+}
+@media(max-width:390px){
+    .face-grid{grid-template-columns:repeat(2,1fr)}
+    .card{padding:17px}
+}
+@media(prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
+</style>
+</head>
+
+<body>
+
+<header>
+    <div class="logo">SMART <span>COMPANION</span></div>
+    <div class="demo-tag">BROWSER DEMO</div>
+</header>
+
+<main class="container">
+
+<div class="topbar">
+    <div>
+        <h1>Your Digital Companion</h1>
+        <div class="subtitle">A little companion with expressions, reactions and useful information.</div>
+    </div>
+    <div class="status"><span class="dot"></span>Demo Running</div>
+</div>
+
+<div class="layout">
+
+<!-- DEVICE PREVIEW -->
+
+<div class="card">
+    <div class="card-title">Device Preview</div>
+
+    <div class="display-area">
+
+        <div class="device-frame">
+            <div class="screen">
+
+                <canvas id="faceCanvas" width="128" height="160"></canvas>
+
+                <div id="clockScreen" class="screen-content">
+                    <div class="screen-clock" id="deviceClock">--:--</div>
+                    <div class="screen-date" id="deviceDate">Loading date...</div>
+                    <div class="screen-weather" id="deviceWeather">Weather loading...</div>
+                </div>
+
+                <div id="fitnessScreen" class="screen-content">
+                    <div style="font-size:11px;color:#9db5ce;margin-bottom:12px">
+                        DAILY ACTIVITY
+                    </div>
+                    <div class="screen-fitness-number" id="deviceSteps">0</div>
+                    <div class="screen-fitness-label">STEPS</div>
+                    <div style="font-size:10px;color:#9db5ce;margin-top:17px">
+                        <span id="deviceCalories">0</span> kcal
+                    </div>
+                </div>
+
+                <div id="textScreen" class="screen-content">
+                    <div class="screen-text" id="deviceCustomText">Hello!</div>
+                </div>
+
+                <div id="qrScreen" class="screen-content">
+                    <div style="font-size:10px;margin-bottom:8px">SCAN ME</div>
+                    <div class="screen-qr" id="deviceQR"></div>
+                </div>
+
+                <div id="imageScreen" class="screen-content">
+                    <img id="deviceImage" alt="Uploaded image">
+                    <video id="deviceVideo" playsinline muted loop></video>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="device-caption">128 × 160 display preview</div>
+        <div class="hint" id="storageStatus" style="text-align:center;margin-top:8px">Preparing local storage...</div>
+        <div class="current-expression" id="expressionName">Happy</div>
+
+    </div>
+
+    <div class="note">
+        Browser simulation only. It does not communicate with your ESP32 yet.
+        Closing this browser stops the browser-based animation and rotation.
+    </div>
+</div>
+
+<!-- CONTROLS -->
+
+<div class="card">
+
+    <div class="card-title">Companion Controls</div>
+
+    <div class="tabs">
+        <span class="tab-glider"></span>
+        <button class="tab active" data-tab="faces">Faces</button>
+        <button class="tab" data-tab="text">Text</button>
+        <button class="tab" data-tab="image">Image</button>
+        <button class="tab" data-tab="qr">QR Code</button>
+        <button class="tab" data-tab="clock">Time &amp; Weather</button>
+        <button class="tab" data-tab="fitness">Fitness</button>
+        <button class="tab" data-tab="settings">Settings</button>
+    </div>
+
+    <!-- FACES -->
+
+    <div class="section active" id="faces">
+
+        <div class="label">Choose an expression</div>
+        <div class="hint">Each expression has its own animated eyes and mouth.</div>
+
+        <div class="face-grid" style="margin-top:15px">
+
+            <button class="face-btn selected" data-face="happy">
+                <span class="face-symbol">☺</span>Happy
+            </button>
+
+            <button class="face-btn" data-face="sad">
+                <span class="face-symbol">☹</span>Sad
+            </button>
+
+            <button class="face-btn" data-face="angry">
+                <span class="face-symbol">⌁</span>Angry
+            </button>
+
+            <button class="face-btn" data-face="surprised">
+                <span class="face-symbol">○</span>Surprised
+            </button>
+
+            <button class="face-btn" data-face="sleepy">
+                <span class="face-symbol">－</span>Sleepy
+            </button>
+
+            <button class="face-btn" data-face="love">
+                <span class="face-symbol">♥</span>Love
+            </button>
+
+            <button class="face-btn" data-face="cry">
+                <span class="face-symbol">💧</span>Cry
+            </button>
+
+            <button class="face-btn" data-face="laugh">
+                <span class="face-symbol">⌣</span>Laugh
+            </button>
+
+        </div>
+
+        <div style="margin-top:20px">
+            <button class="secondary" id="shakeButton" style="width:100%">
+                Simulate Shake Reaction
+            </button>
+            <div class="hint">Simulates a shake detected by the future MPU6050 sensor.</div>
+        </div>
+
+    </div>
+
+    <!-- TEXT -->
+
+    <div class="section" id="text">
+
+        <div class="label">Custom message</div>
+        <div class="hint">Write something you want your companion to display.</div>
+
+        <div style="margin-top:15px">
+            <input type="text" id="customMessage" maxlength="70"
+                   placeholder="Write your message...">
+        </div>
+
+        <div class="row">
+            <button class="primary" id="showText">Display Message</button>
+            <button class="secondary" id="clearText">Clear</button>
+        </div>
+
+        <div class="hint">Your message is saved automatically in this browser.</div>
+
+    </div>
+
+    <!-- IMAGE -->
+
+    <div class="section" id="image">
+
+        <div class="label">Display an Image or Video</div>
+        <div class="hint">
+            Upload a picture or a short video from your computer and preview it on your companion.
+        </div>
+
+        <div style="margin-top:16px">
+            <input type="file" id="imageUpload" accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/ogg">
+        </div>
+
+        <div class="row">
+            <div>
+                <div class="label">Image fitting</div>
+                <div class="hint">Choose how the image fits the screen.</div>
+            </div>
+
+            <select id="imageFit" style="max-width:140px">
+                <option value="contain">Fit image</option>
+                <option value="cover">Fill screen</option>
+            </select>
+        </div>
+
+        <div class="image-preview-box">
+            <img id="imagePreview" alt="Image preview">
+            <video id="videoPreview" controls playsinline muted loop style="display:none;max-width:100%;max-height:210px;object-fit:contain"></video>
+        </div>
+
+        <div class="row">
+            <button class="primary" id="displayImage">Display Image / Video</button>
+            <button class="secondary" id="removeImage">Remove Image</button>
+        </div>
+
+        <div class="hint" id="imageStatus">No image selected.</div>
+
+        <div class="note">
+            Images and videos are stored locally in this browser and restored when you reopen the page. Videos are limited to 20 MB in this browser demo. Actual ESP32 video playback will require separate firmware and suitable hardware support.
+        </div>
+
+    </div>
+
+    <!-- QR CODE -->
+
+    <div class="section" id="qr">
+
+        <div class="label">QR Code Generator</div>
+        <div class="hint">Generate a QR code for a website, profile or custom text.</div>
+
+        <div style="margin-top:15px">
+            <input type="text" id="qrInput" placeholder="Enter URL or text">
+        </div>
+
+        <div class="row">
+            <button class="primary" id="generateQR">Generate QR</button>
+            <button class="secondary" id="clearQR">Clear</button>
+        </div>
+
+        <div class="qr-box" id="qrOutput">
+            <span style="color:#555;font-size:12px">QR preview</span>
+        </div>
+
+        <div class="hint" id="qrStatus">Enter something to generate a QR code.</div>
+
+    </div>
+
+    <!-- TIME & WEATHER -->
+
+    <div class="section" id="clock">
+        <div class="label">Time &amp; Weather Display</div>
+        <div class="hint">Show the live clock, date, and current local weather on your companion's screen. This option works independently of Random Face Mode.</div>
+        <div class="stat-grid" style="margin-top:16px">
+            <div class="stat">
+                <div class="stat-value" id="clockPanelTime">--:--</div>
+                <div class="stat-label">LOCAL TIME</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="clockPanelWeather" style="font-size:16px">Loading...</div>
+                <div class="stat-label">CURRENT WEATHER</div>
+            </div>
+        </div>
+        <div class="hint" id="clockPanelDate" style="margin-top:12px"></div>
+        <button class="primary" id="showClockWeather" style="width:100%;margin-top:16px">Display Time &amp; Weather</button>
+        <button class="secondary" id="refreshClockWeather" style="width:100%;margin-top:9px">Refresh Weather</button>
+        <div class="note">Weather needs an internet connection. Set or refresh your location in Settings.</div>
+    </div>
+
+    <!-- FITNESS -->
+
+    <div class="section" id="fitness">
+
+        <div class="label">Fitness Dashboard</div>
+        <div class="hint">Demo values for the future MPU6050-based fitness feature.</div>
+
+        <div class="stat-grid">
+            <div class="stat">
+                <div class="stat-value" id="stepCount">0</div>
+                <div class="stat-label">STEPS</div>
+            </div>
+
+            <div class="stat">
+                <div class="stat-value" id="calorieCount">0</div>
+                <div class="stat-label">CALORIES</div>
+            </div>
+        </div>
+
+        <div class="row" style="margin-top:20px">
+            <button class="primary" id="addSteps">+ Add 100 Steps</button>
+            <button class="secondary" id="resetSteps">Reset</button>
+        </div>
+
+        <div class="note">
+            These are simulated values. Real step counting will require the ESP32 and MPU6050.
+        </div>
+
+    </div>
+
+    <!-- SETTINGS -->
+
+    <div class="section" id="settings">
+
+        <div class="row">
+            <div>
+                <div class="label">Random Face Mode</div>
+                <div class="hint">Automatically changes the display.</div>
+            </div>
+            <button class="switch" id="randomSwitch" aria-label="Toggle random mode"></button>
+        </div>
+
+        <div class="row">
+            <div style="flex:1">
+                <div class="label">Rotation interval</div>
+                <div class="hint">Time between automatic screen changes.</div>
+            </div>
+
+            <select id="rotationInterval" style="max-width:152px">
+                <option value="5">5 seconds</option>
+                <option value="10">10 seconds</option>
+                <option value="15">15 seconds</option>
+                <option value="30">30 seconds</option>
+                <option value="60">60 seconds</option>
+                <option value="120" selected>120 seconds</option>
+                <option value="180">180 seconds</option>
+            </select>
+        </div>
+
+        <div class="row">
+            <div style="flex:1">
+                <div class="label">Automatic return timer</div>
+                <div class="hint">Turn this ON to resume Random Face Mode automatically after a manually selected screen.</div>
+            </div>
+            <button class="switch on" id="manualTimerSwitch" aria-label="Toggle automatic return timer" aria-pressed="true"></button>
+        </div>
+
+        <div class="row">
+            <div style="flex:1">
+                <div class="label">Manual screen display time</div>
+                <div class="hint">How many minutes text, QR, image or another manually selected screen stays visible before Random Face Mode resumes.</div>
+            </div>
+            <select id="manualDisplayDuration" style="max-width:152px">
+                <option value="1" selected>1 minute</option>
+                <option value="2">2 minutes</option>
+                <option value="3">3 minutes</option>
+                <option value="5">5 minutes</option>
+                <option value="10">10 minutes</option>
+                <option value="15">15 minutes</option>
+                <option value="30">30 minutes</option>
+            </select>
+        </div>
+
+        <div class="note">
+            When Random Face Mode is enabled, the companion cycles through Faces,
+            Time &amp; Weather, and Fitness using the rotation interval above. When the automatic return timer is ON,
+            a manually selected screen stays visible for the selected number of minutes before Random Face Mode resumes.
+            Turn the timer OFF to keep the manually selected screen visible until you choose another screen or change modes.
+        </div>
+
+        <hr style="border:0;border-top:1px solid var(--border);margin:22px 0">
+
+        <div class="row">
+            <div>
+                <div class="label">Display Brightness</div>
+                <div class="hint">Preview control only.</div>
+            </div>
+            <strong id="brightnessValue">80%</strong>
+        </div>
+
+        <input type="range" min="10" max="100" value="80" id="brightness">
+
+        <div class="row" style="margin-top:22px">
+            <div>
+                <div class="label">Buzzer</div>
+                <div class="hint">Simulated sound control.</div>
+            </div>
+            <button class="switch" id="buzzerSwitch" aria-label="Toggle buzzer"></button>
+        </div>
+
+        <button class="secondary" id="testBuzzer" style="width:100%;margin-top:10px">
+            Test Buzzer
+        </button>
+
+        <hr style="border:0;border-top:1px solid var(--border);margin:22px 0">
+
+        <div class="label">Weather Location</div>
+        <div class="hint">Allow browser location access or use Kolkata as the default.</div>
+
+        <button class="secondary" id="weatherButton" style="width:100%;margin-top:12px">
+            Refresh Weather
+        </button>
+
+        <div class="hint" id="weatherStatus" style="margin-top:10px">
+            Weather not loaded yet.
+        </div>
+
+    </div>
+
+</div>
+</div>
+
+<footer>
+    SMART COMPANION V13 · BROWSER DEMO<br>
+    Made with love ❤️ by Rik Pal
+</footer>
+
+</main>
+
+<script>
+
+/* =====================================================
+   SMART COMPANION V13
+===================================================== */
+
+const canvas = document.getElementById("faceCanvas");
+const ctx = canvas.getContext("2d");
+
+const W = 128;
+const H = 160;
+
+let currentFace = "happy";
+let currentScreen = "faces";
+let randomMode = false;
+let buzzerEnabled = false;
+let steps = 0;
+let calories = 0;
+
+let faceStart = performance.now();
+let shakeUntil = 0;
+let blinkStart = 0;
+let nextBlink = performance.now() + 3000;
+
+let rotationTimer = null;
+let manualResumeTimer = null;
+let randomScreenIndex = 0;
+
+let weatherText = "Weather unavailable";
+let brightness = 80;
+
+let savedText = localStorage.getItem("smartCompanionText") || "";
+
+let uploadedImage = null;
+let imageObjectURL = null;
+let uploadedImageBlob = null;
+
+let qrGenerated = false;
+
+/* =====================================================
+   FACE HELPERS
+===================================================== */
+
+function ellipse(x,y,rx,ry,color) {
+    ctx.fillStyle=color;
+    ctx.beginPath();
+    ctx.ellipse(x,y,Math.max(.1,rx),Math.max(.1,ry),0,0,Math.PI*2);
+    ctx.fill();
+}
+
+function line(x1,y1,x2,y2,width,color) {
+    ctx.beginPath();
+    ctx.moveTo(x1,y1);
+    ctx.lineTo(x2,y2);
+    ctx.lineWidth=width;
+    ctx.lineCap="round";
+    ctx.strokeStyle=color;
+    ctx.stroke();
+}
+
+function curve(points,width,color) {
+    ctx.beginPath();
+    ctx.moveTo(points[0],points[1]);
+    ctx.quadraticCurveTo(points[2],points[3],points[4],points[5]);
+    ctx.lineWidth=width;
+    ctx.lineCap="round";
+    ctx.strokeStyle=color;
+    ctx.stroke();
+}
+
+function heart(x,y,size,color) {
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.scale(size/20,size/20);
+
+    ctx.beginPath();
+    ctx.moveTo(0,7);
+    ctx.bezierCurveTo(-20,-5,-10,-17,0,-8);
+    ctx.bezierCurveTo(10,-17,20,-5,0,7);
+    ctx.closePath();
+
+    ctx.fillStyle=color;
+    ctx.fill();
+    ctx.restore();
+}
+
+const faceNames = {
+    happy:"Happy",
+    sad:"Sad",
+    angry:"Angry",
+    surprised:"Surprised",
+    sleepy:"Sleepy",
+    love:"Love",
+    cry:"Crying",
+    laugh:"Laughing"
+};
+
+const faces = Object.keys(faceNames);
+
+const moodColors = {
+    happy:"#ffc857", sad:"#6f8dff", angry:"#ff5d5d", surprised:"#b794ff",
+    sleepy:"#7f90b8", love:"#ff6f9d", cry:"#4fc3ff", laugh:"#5ce6a5"
+};
+function setMood(color) {
+    document.documentElement.style.setProperty("--mood",color);
+}
+
+const gazeT={x:0,y:0}, gaze={x:0,y:0};
+let lastPointer=-99999;
+window.addEventListener("pointermove",e=>{
+    gazeT.x=(e.clientX/innerWidth-.5)*2;
+    gazeT.y=(e.clientY/innerHeight-.5)*2;
+    lastPointer=performance.now();
+});
+const sm={init:false,rx:9,ry:14,y:66,mw:10,my:105};
+
+function setFace(name) {
+    currentFace=name;
+    currentScreen="faces";
+    faceStart=performance.now();
+
+    showScreen("faces");
+
+    const expr=document.getElementById("expressionName");
+    expr.textContent=faceNames[name];
+    expr.classList.remove("swap"); void expr.offsetWidth; expr.classList.add("swap");
+
+    document.querySelectorAll(".face-btn").forEach(btn=>{
+        btn.classList.toggle("selected",btn.dataset.face===name);
+    });
+}
+
+/* =====================================================
+   DRAW FACE
+===================================================== */
+
+function drawFace(time) {
+
+    const dt=Math.min(.05,(time-(drawFace.last||time))/1000);
+    drawFace.last=time;
+
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle="#000";
+    ctx.fillRect(0,0,W,H);
+
+    const glow=ctx.createRadialGradient(64,77,5,64,77,90);
+    glow.addColorStop(0,"rgba(255,255,255,.035)");
+    glow.addColorStop(1,"rgba(0,0,0,0)");
+
+    ctx.fillStyle=glow;
+    ctx.fillRect(0,0,W,H);
+
+    // springy pop whenever the expression changes
+    const pp=Math.min(1,(time-faceStart)/520);
+    const eb=1+2.70158*Math.pow(pp-1,3)+1.70158*Math.pow(pp-1,2);
+    const popScale=.82+.18*eb;
+    ctx.save();
+    ctx.translate(64,80);
+    ctx.scale(popScale,popScale);
+    ctx.translate(-64,-80);
+
+    const breathing=Math.sin(time/600)*1.2;
+
+    let eyeY=66+breathing;
+    let leftX=43;
+    let rightX=85;
+
+    let eyeRX=9;
+    let eyeRY=14;
+
+    let mouthType="smile";
+    let mouthY=105;
+    let mouthWidth=10;
+    let brow=false;
+    let tears=false;
+    let heartEyes=false;
+
+    let eyeTilt=0;
+
+    if(time>nextBlink) {
+        blinkStart=time;
+        nextBlink=time+2600+Math.random()*3500;
+    }
+
+    const blinkProgress=(time-blinkStart)/160;
+    let blinkAmount=0;
+
+    if(blinkProgress>=0 && blinkProgress<1) {
+        blinkAmount=Math.sin(blinkProgress*Math.PI);
+    }
+
+    switch(currentFace) {
+
+        case "happy":
+            eyeRY=3.5;
+            eyeRX=11;
+            mouthType="smile";
+            mouthWidth=16;
+            break;
+
+        case "sad":
+            eyeRY=12;
+            eyeY+=3;
+            mouthType="sad";
+            mouthY=112;
+            mouthWidth=12;
+            brow=true;
+            break;
+
+        case "angry":
+            eyeRY=8;
+            eyeRX=11;
+            eyeTilt=-.18;
+            mouthType="flat";
+            mouthY=107;
+            brow=true;
+            break;
+
+        case "surprised":
+            eyeRX=10;
+            eyeRY=17;
+            mouthType="open";
+            mouthY=107;
+            break;
+
+        case "sleepy":
+            eyeRY=3;
+            eyeRX=12;
+            mouthType="flat";
+            mouthY=107;
+            break;
+
+        case "love":
+            heartEyes=true;
+            mouthType="smile";
+            mouthWidth=13;
+            break;
+
+        case "cry":
+            eyeRY=10;
+            eyeY+=3;
+            mouthType="sad";
+            mouthY=112;
+            mouthWidth=12;
+            tears=true;
+            break;
+
+        case "laugh":
+            eyeRY=3;
+            eyeRX=12;
+            mouthType="laugh";
+            mouthY=106;
+            mouthWidth=16;
+            break;
+    }
+
+    const isShaking=time<shakeUntil;
+
+    if(isShaking) {
+        eyeRX=5+Math.abs(Math.sin(time/35))*7;
+        eyeRY=15;
+        mouthType="open";
+        eyeY+=Math.sin(time/30)*3;
+    }
+
+    if(currentFace==="sleepy") {
+        eyeRY=3+Math.sin(time/900)*1.2;
+    }
+
+    // ease every feature toward its target so expressions morph instead of snapping
+    const k=1-Math.exp(-dt*(isShaking?30:14));
+    if(!sm.init) {
+        sm.rx=eyeRX; sm.ry=eyeRY; sm.y=eyeY; sm.mw=mouthWidth; sm.my=mouthY; sm.init=true;
+    }
+    sm.rx+=(eyeRX-sm.rx)*k;
+    sm.ry+=(eyeRY-sm.ry)*k;
+    sm.y+=(eyeY-sm.y)*k;
+    sm.mw+=(mouthWidth-sm.mw)*k;
+    sm.my+=(mouthY-sm.my)*k;
+    eyeRX=sm.rx; eyeRY=sm.ry; eyeY=sm.y; mouthWidth=sm.mw; mouthY=sm.my;
+
+    // eyes follow the pointer, then wander on their own when it goes quiet
+    const idle=time-lastPointer>4000;
+    const gtx=idle?Math.sin(time/1900)*.7:gazeT.x;
+    const gty=idle?Math.cos(time/2300)*.4:gazeT.y;
+    gaze.x+=(gtx-gaze.x)*k*.5;
+    gaze.y+=(gty-gaze.y)*k*.5;
+    if(currentFace!=="sleepy" && !isShaking) {
+        leftX+=gaze.x*4; rightX+=gaze.x*4; eyeY+=gaze.y*2.5;
+    }
+
+    if(blinkAmount>0 && !isShaking && currentFace!=="love") {
+        eyeRY*=Math.max(.08,1-blinkAmount);
+    }
+
+    if(currentFace==="love") {
+        heart(20,33+Math.sin(time/250)*3,10,"#ff6f9d");
+        heart(107,43+Math.sin(time/310)*4,8,"#ff6f9d");
+    }
+
+    if(brow) {
+        if(currentFace==="angry") {
+            line(32,46,49,53,3,"#fff");
+            line(79,53,96,46,3,"#fff");
+        } else {
+            line(32,45,49,49,2,"#fff");
+            line(79,49,96,45,2,"#fff");
+        }
+    }
+
+    if(heartEyes) {
+        const hp=23+Math.pow(Math.max(0,Math.sin(time/260)),3)*4;
+        heart(leftX,eyeY,hp,"#fff");
+        heart(rightX,eyeY,hp,"#fff");
+    } else {
+        ctx.save();
+        ctx.translate(leftX,eyeY);
+        ctx.rotate(eyeTilt);
+        ellipse(0,0,eyeRX,eyeRY,"#fff");
+        ctx.restore();
+
+        ctx.save();
+        ctx.translate(rightX,eyeY);
+        ctx.rotate(-eyeTilt);
+        ellipse(0,0,eyeRX,eyeRY,"#fff");
+        ctx.restore();
+
+        if(isShaking) {
+            // Dizzy spiral pupils during the 4-second shake reaction.
+            [leftX,rightX].forEach((x, index)=>{
+                ctx.save();
+                ctx.translate(x,eyeY+2);
+                ctx.rotate((time/95)*(index===0 ? 1 : -1));
+                ctx.beginPath();
+                for(let i=0;i<=42;i++) {
+                    const angle=i*0.22;
+                    const radius=0.35+i*0.105;
+                    const px=Math.cos(angle)*radius;
+                    const py=Math.sin(angle)*radius*1.25;
+                    if(i===0) ctx.moveTo(px,py);
+                    else ctx.lineTo(px,py);
+                }
+                ctx.strokeStyle="#000";
+                ctx.lineWidth=1.7;
+                ctx.lineCap="round";
+                ctx.stroke();
+                ctx.restore();
+            });
+        } else if(currentFace==="surprised") {
+            ellipse(leftX,eyeY+2,3,5,"#000");
+            ellipse(rightX,eyeY+2,3,5,"#000");
+        }
+    }
+
+    if(mouthType==="smile") {
+        curve([64-mouthWidth,mouthY,64,mouthY+12,64+mouthWidth,mouthY],3.5,"#fff");
+    }
+
+    if(mouthType==="sad") {
+        curve([64-mouthWidth,mouthY+7,64,mouthY-7,64+mouthWidth,mouthY+7],3.5,"#fff");
+    }
+
+    if(mouthType==="flat") {
+        line(55,mouthY,73,mouthY,3,"#fff");
+    }
+
+    if(mouthType==="open") {
+        ellipse(64,mouthY,7,10,"#fff");
+        ellipse(64,mouthY,3.5,6,"#000");
+    }
+
+    if(mouthType==="laugh") {
+        ctx.beginPath();
+        ctx.ellipse(64,mouthY,13,9+Math.sin(time/100)*2,0,0,Math.PI);
+        ctx.fillStyle="#fff";
+        ctx.fill();
+    }
+
+    if(tears) {
+        const tearOffset=(time/5)%45;
+
+        for(let i=0;i<2;i++) {
+            const x=i===0?42:86;
+            const y=83+((tearOffset+i*23)%45);
+
+            ctx.fillStyle="#55caff";
+            ctx.beginPath();
+            ctx.moveTo(x,y-5);
+            ctx.bezierCurveTo(x-5,y+2,x-5,y+7,x,y+8);
+            ctx.bezierCurveTo(x+5,y+7,x+5,y+2,x,y-5);
+            ctx.fill();
+        }
+    }
+
+    if(currentFace==="sleepy") {
+        ctx.fillStyle="#fff";
+        for(let i=0;i<3;i++) {
+            const p=((time/2600)+i/3)%1;
+            ctx.globalAlpha=Math.sin(p*Math.PI)*.7;
+            ctx.font=`bold ${7+p*7}px Arial`;
+            ctx.fillText("z",92+p*14,44-p*26);
+        }
+        ctx.globalAlpha=1;
+    }
+
+    if(isShaking) {
+        line(23,55,18,48,2,"#fff");
+        line(105,55,110,48,2,"#fff");
+    }
+
+    if(["happy","laugh","love"].includes(currentFace)) {
+        ctx.globalAlpha=.22+.08*Math.sin(time/500);
+        ellipse(30,89,8,4,"#ff6f9d");
+        ellipse(98,89,8,4,"#ff6f9d");
+        ctx.globalAlpha=1;
+    }
+
+    if(currentFace==="happy" || currentFace==="laugh") {
+        ctx.fillStyle="#fff";
+        ctx.font="10px Arial";
+        ctx.globalAlpha=.25+.6*Math.abs(Math.sin(time/420));
+        ctx.fillText("✦",17,91-Math.sin(time/420)*2);
+        ctx.globalAlpha=.25+.6*Math.abs(Math.cos(time/420));
+        ctx.fillText("✦",104,91-Math.cos(time/420)*2);
+        ctx.globalAlpha=1;
+    }
+
+    ctx.restore();
+}
+
+function animate(time) {
+    if(currentScreen==="faces") drawFace(time);
+    requestAnimationFrame(animate);
+}
+
+requestAnimationFrame(animate);
+
+/* =====================================================
+   SCREEN MANAGEMENT
+===================================================== */
+
+function showScreen(screen) {
+
+    currentScreen=screen;
+    setMood(screen==="faces" ? (moodColors[currentFace]||"#72e5ff") : "#72e5ff");
+
+    canvas.style.display=screen==="faces"?"block":"none";
+
+    document.getElementById("deviceImage").style.display =
+        screen==="image" && uploadedMediaType==="image"?"block":"none";
+    const deviceVideo=document.getElementById("deviceVideo");
+    deviceVideo.style.display=screen==="image" && uploadedMediaType==="video"?"block":"none";
+    if(screen==="image" && uploadedMediaType==="video") {
+        deviceVideo.play().catch(()=>{});
+    } else {
+        deviceVideo.pause();
+    }
+
+    document.querySelectorAll(".screen-content").forEach(el=>{
+        el.classList.remove("active");
+    });
+
+    const ids={
+        clock:"clockScreen",
+        fitness:"fitnessScreen",
+        text:"textScreen",
+        qr:"qrScreen",
+        image:"imageScreen"
+    };
+
+    if(ids[screen]) {
+        document.getElementById(ids[screen]).classList.add("active");
+    }
+
+    if(screen==="fitness") updateFitnessDisplay();
+    if(screen==="clock") updateClock();
+}
+
+function selectTab(tabName) {
+
+    document.querySelectorAll(".tab").forEach(btn=>{
+        btn.classList.toggle("active",btn.dataset.tab===tabName);
+    });
+
+    document.querySelectorAll(".section").forEach(section=>{
+        section.classList.toggle("active",section.id===tabName);
+    });
+
+    let selectedScreen=null;
+    if(tabName==="faces") selectedScreen="faces";
+    if(tabName==="clock") selectedScreen="clock";
+    if(tabName==="fitness") selectedScreen="fitness";
+    if(tabName==="text" && savedText) selectedScreen="text";
+    if(tabName==="qr" && qrGenerated) selectedScreen="qr";
+    if(tabName==="image" && uploadedImage) selectedScreen="image";
+
+    if(selectedScreen) {
+        showScreen(selectedScreen);
+        pauseRotationForManualScreen();
+    }
+}
+
+document.querySelectorAll(".tab").forEach(btn=>{
+    btn.addEventListener("click",()=>selectTab(btn.dataset.tab));
+});
+
+document.getElementById("showClockWeather").addEventListener("click",()=>{
+    showScreen("clock");
+    pauseRotationForManualScreen();
+});
+document.getElementById("refreshClockWeather").addEventListener("click",refreshWeather);
+
+document.querySelectorAll(".face-btn").forEach(btn=>{
+    btn.addEventListener("click",()=>{
+        setFace(btn.dataset.face);
+        pauseRotationForManualScreen();
+    });
+});
+
+/* =====================================================
+   RANDOM MODE
+===================================================== */
+
+function stopRotation() {
+    clearInterval(rotationTimer);
+    rotationTimer=null;
+    clearTimeout(manualResumeTimer);
+    manualResumeTimer=null;
+}
+
+let manualTimerEnabled=true;
+
+function pauseRotationForManualScreen() {
+    if(!randomMode) return;
+
+    clearInterval(rotationTimer);
+    rotationTimer=null;
+    clearTimeout(manualResumeTimer);
+    manualResumeTimer=null;
+
+    if(!manualTimerEnabled) return;
+
+    const minutes=Number(document.getElementById("manualDisplayDuration").value)||1;
+    manualResumeTimer=setTimeout(()=>{
+        manualResumeTimer=null;
+        if(randomMode) startRotation();
+    },minutes*60*1000);
+}
+
+function chooseRandomFace() {
+    const next=faces[Math.floor(Math.random()*faces.length)];
+    setFace(next);
+}
+
+function startRotation() {
+
+    stopRotation();
+
+    randomScreenIndex=0;
+    showScreen("faces");
+    chooseRandomFace();
+
+    const interval=Number(
+        document.getElementById("rotationInterval").value
+    )*1000;
+
+    rotationTimer=setInterval(()=>{
+
+        if(!randomMode) return;
+
+        randomScreenIndex=(randomScreenIndex+1)%3;
+
+        if(randomScreenIndex===0) {
+            showScreen("faces");
+            chooseRandomFace();
+        }
+
+        if(randomScreenIndex===1) {
+            updateClock();
+            showScreen("clock");
+            refreshWeather();
+        }
+
+        if(randomScreenIndex===2) {
+            updateFitnessDisplay();
+            showScreen("fitness");
+        }
+
+    },interval);
+}
+
+const randomSwitch=document.getElementById("randomSwitch");
+
+randomSwitch.addEventListener("click",()=>{
+
+    randomMode=!randomMode;
+    randomSwitch.classList.toggle("on",randomMode);
+
+    if(randomMode) {
+        startRotation();
+    } else {
+        stopRotation();
+        selectTab("faces");
+        setFace("happy");
+    }
+
+});
+
+document.getElementById("rotationInterval").addEventListener("change",()=>{
+    if(randomMode) startRotation();
+});
+
+document.getElementById("manualDisplayDuration").addEventListener("change",()=>{
+    if(randomMode && manualResumeTimer) pauseRotationForManualScreen();
+});
+
+const manualTimerSwitch=document.getElementById("manualTimerSwitch");
+manualTimerSwitch.addEventListener("click",()=>{
+    manualTimerEnabled=!manualTimerEnabled;
+    manualTimerSwitch.classList.toggle("on",manualTimerEnabled);
+    manualTimerSwitch.setAttribute("aria-pressed",String(manualTimerEnabled));
+    if(!manualTimerEnabled) {
+        clearTimeout(manualResumeTimer);
+        manualResumeTimer=null;
+    } else if(randomMode) {
+        pauseRotationForManualScreen();
+    }
+    saveState();
+});
+
+/* =====================================================
+   SHAKE
+===================================================== */
+
+document.getElementById("shakeButton").addEventListener("click",()=>{
+
+    if(randomMode) return;
+
+    shakeUntil=performance.now()+4000;
+    setFace("surprised");
+
+    const df=document.querySelector(".device-frame");
+    df.classList.remove("shaking"); void df.offsetWidth; df.classList.add("shaking");
+    setTimeout(()=>df.classList.remove("shaking"),4000);
+
+    if(buzzerEnabled) playBeep();
+
+    document.getElementById("expressionName").textContent="Shake Reaction!";
+});
+
+/* =====================================================
+   CUSTOM TEXT
+===================================================== */
+
+const customMessage=document.getElementById("customMessage");
+customMessage.value=savedText;
+
+function updateTextDisplay() {
+    document.getElementById("deviceCustomText").textContent=savedText||"Hello!";
+}
+
+updateTextDisplay();
+
+document.getElementById("showText").addEventListener("click",()=>{
+
+    savedText=customMessage.value.trim();
+
+    if(!savedText) {
+        alert("Please enter a message first.");
+        return;
+    }
+
+    localStorage.setItem("smartCompanionText",savedText);
+    updateTextDisplay();
+
+    showScreen("text");
+    pauseRotationForManualScreen();
+});
+
+document.getElementById("clearText").addEventListener("click",()=>{
+
+    customMessage.value="";
+    savedText="";
+
+    localStorage.removeItem("smartCompanionText");
+    updateTextDisplay();
+
+    if(!randomMode) showScreen("faces");
+});
+
+/* =====================================================
+   IMAGE / VIDEO UPLOAD AND DISPLAY
+===================================================== */
+
+const imageUpload=document.getElementById("imageUpload");
+const imagePreview=document.getElementById("imagePreview");
+const videoPreview=document.getElementById("videoPreview");
+const deviceImage=document.getElementById("deviceImage");
+const deviceVideo=document.getElementById("deviceVideo");
+let uploadedMediaType=null;
+
+imageUpload.addEventListener("change",function(){
+    const file=this.files[0];
+    if(!file) return;
+
+    const isImage=["image/jpeg","image/png","image/webp","image/gif"].includes(file.type);
+    const isVideo=["video/mp4","video/webm","video/ogg"].includes(file.type);
+    if(!isImage && !isVideo) {
+        alert("Please select a JPG, PNG, WebP, GIF, MP4, WebM or OGG file.");
+        this.value="";
+        return;
+    }
+    const maxSize=isVideo?20*1024*1024:5*1024*1024;
+    if(file.size>maxSize) {
+        alert(isVideo?"Please select a video smaller than 20 MB.":"Please select an image smaller than 5 MB.");
+        this.value="";
+        return;
+    }
+
+    if(imageObjectURL) URL.revokeObjectURL(imageObjectURL);
+    imageObjectURL=URL.createObjectURL(file);
+    uploadedImage=imageObjectURL;
+    uploadedImageBlob=file;
+    uploadedMediaType=isImage?"image":"video";
+    storeSavedImage(file).catch(error=>console.warn("Media could not be saved locally:",error));
+
+    if(isImage) {
+        videoPreview.pause();
+        videoPreview.style.display="none";
+        videoPreview.removeAttribute("src");
+        imagePreview.src=uploadedImage;
+        imagePreview.style.display="block";
+        deviceImage.src=uploadedImage;
+        deviceImage.style.display=currentScreen==="image"?"block":"none";
+        deviceVideo.pause();
+        deviceVideo.style.display="none";
+        deviceVideo.removeAttribute("src");
+        document.getElementById("imageStatus").textContent="Image uploaded successfully.";
+    } else {
+        imagePreview.style.display="none";
+        imagePreview.removeAttribute("src");
+        videoPreview.src=uploadedImage;
+        videoPreview.style.display="block";
+        deviceImage.style.display="none";
+        deviceImage.removeAttribute("src");
+        deviceVideo.src=uploadedImage;
+        deviceVideo.style.objectFit=document.getElementById("imageFit").value;
+        deviceVideo.style.display=currentScreen==="image"?"block":"none";
+        deviceVideo.load();
+        videoPreview.load();
+        document.getElementById("imageStatus").textContent="Video uploaded. Use the preview controls to play it, then select Display Image / Video.";
+    }
+});
+
+document.getElementById("imageFit").addEventListener("change",function(){
+    imagePreview.style.objectFit=this.value;
+    videoPreview.style.objectFit=this.value;
+    deviceImage.style.objectFit=this.value;
+    deviceVideo.style.objectFit=this.value;
+});
+
+document.getElementById("displayImage").addEventListener("click",()=>{
+    if(!uploadedImage) {
+        alert("Please upload an image or video first.");
+        return;
+    }
+    showScreen("image");
+    pauseRotationForManualScreen();
+});
+
+document.getElementById("removeImage").addEventListener("click",()=>{
+    uploadedImage=null;
+    uploadedImageBlob=null;
+    uploadedMediaType=null;
+    deleteSavedImage().catch(error=>console.warn("Saved media could not be removed:",error));
+    imageUpload.value="";
+    imagePreview.removeAttribute("src");
+    videoPreview.pause();
+    videoPreview.removeAttribute("src");
+    deviceImage.removeAttribute("src");
+    deviceVideo.pause();
+    deviceVideo.removeAttribute("src");
+    imagePreview.style.display="block";
+    videoPreview.style.display="none";
+    deviceImage.style.display="none";
+    deviceVideo.style.display="none";
+    if(imageObjectURL) {
+        URL.revokeObjectURL(imageObjectURL);
+        imageObjectURL=null;
+    }
+    document.getElementById("imageStatus").textContent="Image or video removed.";
+    if(currentScreen==="image") {
+        selectTab("faces");
+        setFace("happy");
+    }
+});
+
+/* =====================================================
+   QR CODE
+===================================================== */
+
+function generateDeviceQR(value) {
+
+    const output=document.getElementById("deviceQR");
+    output.innerHTML="";
+
+    if(!window.QRCode) return false;
+
+    new QRCode(output,{
+        text:value,
+        width:100,
+        height:100,
+        colorDark:"#000000",
+        colorLight:"#ffffff",
+        correctLevel:QRCode.CorrectLevel.M
+    });
+
+    return true;
+}
+
+document.getElementById("generateQR").addEventListener("click",()=>{
+
+    const value=document.getElementById("qrInput").value.trim();
+
+    if(!value) {
+        alert("Enter a URL or text first.");
+        return;
+    }
+
+    const output=document.getElementById("qrOutput");
+    output.innerHTML="";
+
+    if(!window.QRCode) {
+        document.getElementById("qrStatus").textContent =
+            "QR library unavailable. Check your internet connection.";
+        return;
+    }
+
+    new QRCode(output,{
+        text:value,
+        width:145,
+        height:145,
+        colorDark:"#000000",
+        colorLight:"#ffffff",
+        correctLevel:QRCode.CorrectLevel.M
+    });
+
+    qrGenerated=true;
+    generateDeviceQR(value);
+
+    document.getElementById("qrStatus").textContent="QR code generated successfully.";
+
+    showScreen("qr");
+    pauseRotationForManualScreen();
+});
+
+document.getElementById("clearQR").addEventListener("click",()=>{
+
+    qrGenerated=false;
+
+    document.getElementById("qrOutput").innerHTML=
+        '<span style="color:#555;font-size:12px">QR preview</span>';
+
+    document.getElementById("deviceQR").innerHTML="";
+
+    document.getElementById("qrStatus").textContent="QR code cleared.";
+
+    if(!randomMode) showScreen("faces");
+});
+
+/* =====================================================
+   FITNESS
+===================================================== */
+
+function updateFitnessDisplay() {
+
+    calories=Math.round(steps*.04);
+
+    document.getElementById("stepCount").textContent=steps;
+    document.getElementById("calorieCount").textContent=calories;
+
+    document.getElementById("deviceSteps").textContent=steps;
+    document.getElementById("deviceCalories").textContent=calories;
+}
+
+document.getElementById("addSteps").addEventListener("click",()=>{
+    steps+=100;
+    updateFitnessDisplay();
+    ["stepCount","calorieCount","deviceSteps"].forEach(id=>{
+        const el=document.getElementById(id);
+        el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump");
+    });
+});
+
+document.getElementById("resetSteps").addEventListener("click",()=>{
+    steps=0;
+    updateFitnessDisplay();
+});
+
+/* =====================================================
+   CLOCK
+===================================================== */
+
+function updateClock() {
+
+    const now=new Date();
+
+    document.getElementById("deviceClock").textContent=
+        now.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+
+    document.getElementById("deviceDate").textContent=
+        now.toLocaleDateString([],{weekday:"short",day:"numeric",month:"short"});
+
+    const panelTime=document.getElementById("clockPanelTime");
+    const panelDate=document.getElementById("clockPanelDate");
+    const panelWeather=document.getElementById("clockPanelWeather");
+    if(panelTime) panelTime.textContent=now.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+    if(panelDate) panelDate.textContent=now.toLocaleDateString([],{weekday:"long",year:"numeric",month:"long",day:"numeric"});
+    if(panelWeather) panelWeather.textContent=weatherText;
+}
+
+setInterval(updateClock,1000);
+updateClock();
+
+/* =====================================================
+   WEATHER
+===================================================== */
+
+async function getWeather(latitude,longitude) {
+
+    const status=document.getElementById("weatherStatus");
+
+    try {
+
+        status.textContent="Fetching weather...";
+
+        const url=
+            `https://api.open-meteo.com/v1/forecast?latitude=${latitude}`+
+            `&longitude=${longitude}&current=temperature_2m,weather_code`;
+
+        const response=await fetch(url);
+
+        if(!response.ok) throw new Error("Weather request failed");
+
+        const data=await response.json();
+
+        const temp=Math.round(data.current.temperature_2m);
+        const code=data.current.weather_code;
+
+        let description="Cloudy";
+
+        if(code===0) description="Clear";
+        else if([1,2,3].includes(code)) description="Partly cloudy";
+        else if([45,48].includes(code)) description="Foggy";
+        else if([51,53,55,61,63,65,80,81,82].includes(code)) description="Rainy";
+        else if([71,73,75,77,85,86].includes(code)) description="Snowy";
+        else if([95,96,99].includes(code)) description="Thunderstorm";
+
+        weatherText=`${description} · ${temp}°C`;
+
+        document.getElementById("deviceWeather").textContent=weatherText;
+        const panelWeather=document.getElementById("clockPanelWeather");
+        if(panelWeather) panelWeather.textContent=weatherText;
+        status.textContent=`Weather updated: ${weatherText}`;
+
+    } catch(error) {
+
+        weatherText="Weather unavailable";
+
+        document.getElementById("deviceWeather").textContent=weatherText;
+
+        status.textContent="Could not fetch weather. Check your internet connection.";
+    }
+}
+
+function refreshWeather() {
+
+    if(!navigator.geolocation) {
+        getWeather(22.5726,88.3639);
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        position=>{
+            getWeather(
+                position.coords.latitude,
+                position.coords.longitude
+            );
+        },
+        ()=>{
+            getWeather(22.5726,88.3639);
+        },
+        {timeout:7000}
+    );
+}
+
+document.getElementById("weatherButton").addEventListener("click",refreshWeather);
+
+/* =====================================================
+   BRIGHTNESS
+===================================================== */
+
+document.getElementById("brightness").addEventListener("input",event=>{
+
+    brightness=Number(event.target.value);
+
+    document.getElementById("brightnessValue").textContent=brightness+"%";
+
+    document.querySelector(".screen").style.filter=
+        `brightness(${brightness/100})`;
+});
+
+/* =====================================================
+   BUZZER
+===================================================== */
+
+document.getElementById("buzzerSwitch").addEventListener("click",event=>{
+
+    buzzerEnabled=!buzzerEnabled;
+
+    event.currentTarget.classList.toggle("on",buzzerEnabled);
+});
+
+function playBeep() {
+
+    try {
+
+        const AudioContext=window.AudioContext||window.webkitAudioContext;
+
+        const audio=new AudioContext();
+        const oscillator=audio.createOscillator();
+        const gain=audio.createGain();
+
+        oscillator.type="sine";
+        oscillator.frequency.value=850;
+
+        gain.gain.value=.06;
+
+        oscillator.connect(gain);
+        gain.connect(audio.destination);
+
+        oscillator.start();
+
+        setTimeout(()=>{
+            oscillator.stop();
+            audio.close();
+        },130);
+
+    } catch(e) {
+        console.log("Audio unavailable");
+    }
+}
+
+document.getElementById("testBuzzer").addEventListener("click",()=>{
+
+    if(!buzzerEnabled) {
+        alert("Enable the buzzer first.");
+        return;
+    }
+
+    playBeep();
+});
+
+
+/* =====================================================
+   PERSISTENT STORAGE
+   Settings use localStorage; uploaded media uses IndexedDB.
+===================================================== */
+
+const STATE_KEY = "smartCompanionV7State";
+const IMAGE_DB_NAME = "SmartCompanionV7";
+const IMAGE_STORE_NAME = "savedFiles";
+
+function openImageDatabase() {
+    return new Promise((resolve,reject)=>{
+        if(!("indexedDB" in window)) {
+            reject(new Error("IndexedDB is not available"));
+            return;
+        }
+        const request=indexedDB.open(IMAGE_DB_NAME,1);
+        request.onupgradeneeded=()=>{
+            const db=request.result;
+            if(!db.objectStoreNames.contains(IMAGE_STORE_NAME)) {
+                db.createObjectStore(IMAGE_STORE_NAME);
+            }
+        };
+        request.onsuccess=()=>resolve(request.result);
+        request.onerror=()=>reject(request.error);
+    });
+}
+
+async function storeSavedImage(blob) {
+    const db=await openImageDatabase();
+    return new Promise((resolve,reject)=>{
+        const tx=db.transaction(IMAGE_STORE_NAME,"readwrite");
+        tx.objectStore(IMAGE_STORE_NAME).put(blob,"companionImage");
+        tx.oncomplete=()=>{db.close();resolve();};
+        tx.onerror=()=>{db.close();reject(tx.error);};
+        tx.onabort=()=>{db.close();reject(tx.error || new Error("Image save aborted"));};
+    });
+}
+
+async function readSavedImage() {
+    const db=await openImageDatabase();
+    return new Promise((resolve,reject)=>{
+        const tx=db.transaction(IMAGE_STORE_NAME,"readonly");
+        const request=tx.objectStore(IMAGE_STORE_NAME).get("companionImage");
+        request.onsuccess=()=>resolve(request.result || null);
+        request.onerror=()=>reject(request.error);
+        tx.oncomplete=()=>db.close();
+        tx.onerror=()=>{db.close();reject(tx.error);};
+    });
+}
+
+async function deleteSavedImage() {
+    const db=await openImageDatabase();
+    return new Promise((resolve,reject)=>{
+        const tx=db.transaction(IMAGE_STORE_NAME,"readwrite");
+        tx.objectStore(IMAGE_STORE_NAME).delete("companionImage");
+        tx.oncomplete=()=>{db.close();resolve();};
+        tx.onerror=()=>{db.close();reject(tx.error);};
+    });
+}
+
+function collectSavedState() {
+    return {
+        version:9,
+        currentFace,
+        currentScreen,
+        activeTab:document.querySelector(".tab.active")?.dataset.tab || "faces",
+        randomMode,
+        rotationInterval:document.getElementById("rotationInterval").value,
+        manualDisplayDuration:document.getElementById("manualDisplayDuration").value,
+        manualTimerEnabled,
+        savedText,
+        qrInput:document.getElementById("qrInput").value,
+        qrGenerated,
+        steps,
+        brightness,
+        buzzerEnabled,
+        imageFit:document.getElementById("imageFit").value
+    };
+}
+
+let saveStateTimer=null;
+function saveState() {
+    clearTimeout(saveStateTimer);
+    saveStateTimer=setTimeout(()=>{
+        try {
+            localStorage.setItem(STATE_KEY,JSON.stringify(collectSavedState()));
+            const status=document.getElementById("storageStatus");
+            if(status) status.textContent="✓ Changes saved on this device";
+        } catch(error) {
+            const status=document.getElementById("storageStatus");
+            if(status) status.textContent="Could not save settings. Browser storage may be full.";
+            console.warn("Smart Companion settings could not be saved:",error);
+        }
+    },180);
+}
+
+function loadSavedState() {
+    try {
+        const raw=localStorage.getItem(STATE_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch(error) {
+        console.warn("Saved settings could not be read:",error);
+        return null;
+    }
+}
+
+async function restoreSavedImage() {
+    try {
+        const blob=await readSavedImage();
+        if(!blob) return;
+        const isImage=["image/jpeg","image/png","image/webp","image/gif"].includes(blob.type);
+        const isVideo=["video/mp4","video/webm","video/ogg"].includes(blob.type);
+        if(!isImage && !isVideo) return;
+        if(blob.size>(isVideo?20*1024*1024:5*1024*1024)) return;
+
+        uploadedImageBlob=blob;
+        imageObjectURL=URL.createObjectURL(blob);
+        uploadedImage=imageObjectURL;
+        uploadedMediaType=isImage?"image":"video";
+        if(isImage) {
+            imagePreview.src=uploadedImage;
+            imagePreview.style.display="block";
+            deviceImage.src=uploadedImage;
+            document.getElementById("imageStatus").textContent="Previously uploaded image restored.";
+        } else {
+            imagePreview.style.display="none";
+            videoPreview.src=uploadedImage;
+            videoPreview.style.display="block";
+            deviceVideo.src=uploadedImage;
+            deviceVideo.load();
+            document.getElementById("imageStatus").textContent="Previously uploaded video restored.";
+        }
+    } catch(error) {
+        console.warn("Saved image could not be restored:",error);
+        document.getElementById("imageStatus").textContent="No saved image found.";
+    }
+}
+
+async function initializeSmartCompanion() {
+    const state=loadSavedState();
+
+    if(state) {
+        savedText=typeof state.savedText==="string" ? state.savedText : savedText;
+        customMessage.value=savedText;
+        updateTextDisplay();
+
+        steps=Number.isFinite(Number(state.steps)) ? Math.max(0,Number(state.steps)) : 0;
+        brightness=Math.min(100,Math.max(10,Number(state.brightness)||80));
+        buzzerEnabled=!!state.buzzerEnabled;
+
+        document.getElementById("rotationInterval").value=
+            ["5","10","15","30","60","120","180"].includes(String(state.rotationInterval))
+            ? String(state.rotationInterval) : "120";
+        document.getElementById("manualDisplayDuration").value=
+            ["1","2","3","5","10","15","30"].includes(String(state.manualDisplayDuration))
+            ? String(state.manualDisplayDuration) : "1";
+        manualTimerEnabled=state.manualTimerEnabled!==false;
+        manualTimerSwitch.classList.toggle("on",manualTimerEnabled);
+        manualTimerSwitch.setAttribute("aria-pressed",String(manualTimerEnabled));
+
+        document.getElementById("brightness").value=brightness;
+        document.getElementById("brightnessValue").textContent=brightness+"%";
+        document.querySelector(".screen").style.filter=`brightness(${brightness/100})`;
+
+        document.getElementById("buzzerSwitch").classList.toggle("on",buzzerEnabled);
+        const fitValue=state.imageFit==="cover" ? "cover" : "contain";
+        document.getElementById("imageFit").value=fitValue;
+        imagePreview.style.objectFit=fitValue;
+        videoPreview.style.objectFit=fitValue;
+        deviceImage.style.objectFit=fitValue;
+        deviceVideo.style.objectFit=fitValue;
+
+        document.getElementById("qrInput").value=
+            typeof state.qrInput==="string" ? state.qrInput : "";
+
+        if(state.qrGenerated && document.getElementById("qrInput").value.trim()) {
+            const value=document.getElementById("qrInput").value.trim();
+            if(window.QRCode) {
+                document.getElementById("qrOutput").innerHTML="";
+                new QRCode(document.getElementById("qrOutput"),{
+                    text:value,width:145,height:145,
+                    colorDark:"#000000",colorLight:"#ffffff",
+                    correctLevel:QRCode.CorrectLevel.M
+                });
+                generateDeviceQR(value);
+                qrGenerated=true;
+                document.getElementById("qrStatus").textContent="Saved QR code restored.";
+            }
+        }
+
+        if(faces.includes(state.currentFace)) currentFace=state.currentFace;
+    }
+
+    await restoreSavedImage();
+    updateFitnessDisplay();
+    updateClock();
+    setFace(faces.includes(currentFace)?currentFace:"happy");
+
+    if(state && state.activeTab) {
+        const allowedTabs=["faces","text","image","qr","clock","fitness","settings"];
+        const tab=allowedTabs.includes(state.activeTab)?state.activeTab:"faces";
+        document.querySelectorAll(".tab").forEach(btn=>
+            btn.classList.toggle("active",btn.dataset.tab===tab)
+        );
+        document.querySelectorAll(".section").forEach(section=>
+            section.classList.toggle("active",section.id===tab)
+        );
+    }
+
+    const shouldResumeRandom=!!(state && state.randomMode);
+    if(shouldResumeRandom) {
+        randomMode=true;
+        randomSwitch.classList.add("on");
+        startRotation();
+    } else {
+        randomMode=false;
+        randomSwitch.classList.remove("on");
+        let savedScreen=state && ["faces","clock","fitness","text","qr","image"].includes(state.currentScreen)
+            ? state.currentScreen : "faces";
+        if(savedScreen==="image" && !uploadedImage) savedScreen="faces";
+        if(savedScreen==="qr" && !qrGenerated) savedScreen="faces";
+        if(savedScreen==="text" && !savedText) savedScreen="faces";
+        showScreen(savedScreen);
+    }
+
+    const status=document.getElementById("storageStatus");
+    if(status) status.textContent="✓ Settings stored on this device";
+    saveState();
+}
+
+/* Save after user interactions, including settings and tab changes. */
+["click","input","change"].forEach(eventName=>{
+    document.addEventListener(eventName,event=>{
+        if(event.target.closest("button,input,select")) saveState();
+    });
+});
+
+window.addEventListener("pagehide",()=>{
+    try { localStorage.setItem(STATE_KEY,JSON.stringify(collectSavedState())); }
+    catch(error) { console.warn("Final settings save failed:",error); }
+});
+
+/* =====================================================
+   INITIALIZATION
+===================================================== */
+
+refreshWeather();
+initializeSmartCompanion().catch(error=>{
+    console.error("Smart Companion initialization failed:",error);
+    updateFitnessDisplay();
+    updateTextDisplay();
+    setFace("happy");
+    showScreen("faces");
+});
+
+
+/* =====================================================
+   INTERFACE MOTION
+===================================================== */
+
+(function() {
+    const tabs=document.querySelector(".tabs");
+    const glider=tabs.querySelector(".tab-glider");
+    function move() {
+        const a=tabs.querySelector(".tab.active");
+        if(!a) return;
+        glider.style.width=a.offsetWidth+"px";
+        glider.style.height=a.offsetHeight+"px";
+        glider.style.transform=`translate(${a.offsetLeft}px,${a.offsetTop}px)`;
+    }
+    move();
+    requestAnimationFrame(()=>glider.classList.add("ready"));
+    new MutationObserver(move).observe(tabs,{attributes:true,subtree:true,attributeFilter:["class"]});
+    addEventListener("resize",move);
+    if(document.fonts) document.fonts.ready.then(move);
+})();
+
+(function() {
+    if(matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const area=document.querySelector(".display-area");
+    const frame=document.querySelector(".device-frame");
+    area.addEventListener("pointermove",e=>{
+        const r=frame.getBoundingClientRect();
+        const x=(e.clientX-r.left)/r.width-.5;
+        const y=(e.clientY-r.top)/r.height-.5;
+        frame.style.setProperty("--rx",(-y*10).toFixed(2)+"deg");
+        frame.style.setProperty("--ry",(x*12).toFixed(2)+"deg");
+        frame.style.setProperty("--mx",((x+.5)*100).toFixed(1)+"%");
+        frame.style.setProperty("--my",((y+.5)*100).toFixed(1)+"%");
+    });
+    area.addEventListener("pointerleave",()=>{
+        ["--rx","--ry","--mx","--my"].forEach(p=>frame.style.removeProperty(p));
+    });
+})();
+
+</script>
+
+</body>
+</html>
